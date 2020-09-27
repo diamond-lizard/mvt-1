@@ -1,3 +1,5 @@
+This is a mirror of [[http://www.cs.toronto.edu/~hector/MusicSoftware/mvt.html][MVT]] version [[http://www.cs.toronto.edu/~hector/MusicSoftware/mvt1.tar.gz][1]]
+
 MIDIviaTEXT (aka MVT) is a software package that allows MIDI files to be
 edited as simple text files (with extension .mvt).  It uses the free midicsv
 utilities (http://www.fourmilab.ch/webtools/midicsv/) to do a lot of the work.
