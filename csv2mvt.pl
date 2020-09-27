@@ -126,7 +126,7 @@ for($i=0;$i<$ind;$i++) {
 			} elsif ($ctl eq 7) {
 				print("volume $chan $val\n");
 			} elsif ($ctl eq 1) {
-				print("wheel $chan $val)n");
+				print("wheel $chan $val\n");
 			} elsif ($ctl eq 11) {
 				print("expression $chan $val\n");
 			} else {

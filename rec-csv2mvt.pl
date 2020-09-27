@@ -90,7 +90,7 @@ for($i=0;$i<$ind;$i++) {
 			} elsif ($ctl eq 7) {
 				print FILE ("volume $chan $val\n");
 			} elsif ($ctl eq 1) {
-				print FILE ("wheel $chan $val)n");
+				print FILE ("wheel $chan $val\n");
 			} elsif ($ctl eq 11) {
 				print FILE ("expression $chan $val\n");
 			} else {
