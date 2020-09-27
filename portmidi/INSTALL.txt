@@ -1,0 +1,81 @@
+This part of MVT uses the freely available code from the PortMidi project
+<http://portmedia.sourceforge.net/portmidi/>.  But some assembly is still
+required.  I have only tried getting it to work on a Mac with OS X.  With
+other operating systems, you are on your own.  Good luck!
+
+The first step is to make sure that Racket Scheme is installed properly:
+
+   > racket -e '(+ 3 4)'
+   7
+
+The next step is to install the PortMidi libraries.  For OS X users who have
+MacPorts installed, this is easy:
+
+   > port install portmidi 
+
+does it without incident. Two "include" files, portmidi.h and porttime.h, will
+be installed somewhere (in my case, in /opt/local/include/), and a dynamic
+library libportmidi.dylib (in /opt/local/lib/).
+
+The next step is to compile "portmidi-ffi-interface.c" as a dynamic library.
+The actual call to the C compiler that worked for me under OS X is in the file
+"make-portmidi".  (I used "gcc" as is. I did not try using XCode, or any other
+way of compiling.)  Your mileage will likely vary.
+
+Assuming the compilation works, you will have created a dynamic library of
+some name.  For me, it was called "portmidi-ffi-interface.dylib".  The next
+step in the installation is to edit the start of the Scheme file
+"portmidi-ffi-interface.scm" to point to this newly created file.
+
+Now on to the testing.  First make sure the dynamic library is working:
+
+   > racket -fm test-portmidi.scm
+   Here are the MIDI devices currently connected
+   The INPUT devices seen by PortMidi:
+     0: CoreMIDI, IAC Driver Bus 1 
+     1: CoreMIDI, new external device
+   The OUTPUT devices seen by PortMidi:
+     0: CoreMIDI, IAC Driver Bus 1 
+   Enter a MIDI INPUT device number to test (or #f): 
+
+Of course the MIDI devices listed depend on what you have connected to your
+computer.  (IAC is the way Mac users route MIDI from one program to another.)
+Answer #f to both questions and the program should terminate normally.
+
+TESTING OUTPUT 
+
+If no MIDI instrument is connected, the IAC Driver (under OS X) should be used
+to send MIDI to some other application that will produce the sound.
+
+Midipipe <http://web.mac.com/nicowald/SubtleSoft/MidiPipe.html> is a free
+application that can connect IAC to the yucky QuickTime music synthesizer.
+Garageband can also be used over IAC and has better sounding instruments, but
+is limited to a single MIDI channel.  Logic is better, but my version does not
+respond to the "all-notes-off" message.  Maybe the best option is to use VST
+instruments (free or commercial) and run a VST host.
+
+Once a MIDI output device is set up, restart "test-portmidi.scm" as above,
+answering #f for the input device, and some device number for the output
+device.  You should hear the scale of C major on channel 1 of that device.
+
+TESTING INPUT 
+
+Typically a MIDI keyboard of some sort is used for MIDI input. Once a MIDI
+input device is connected, restart "test-portmidi.scm" as above, providing a
+suitable number for the input device. (The selected MIDI input device must be
+different from the selected MIDI output device, or there will be a nasty
+loop!)  MIDI input will then be tested by first printing this:
+
+   Testing input.  Send some notes from MIDI in. 
+   Type a RETURN to stop.
+
+At this point, play some keys on the attached MIDI keyboard, and information
+about those keys should be displayed.  (If a MIDI output has been selected,
+those notes will also be echoed to MIDI out.)  If this is all working, type a
+RETURN (aka ENTER) to stop the testing.
+
+FINAL STEP
+
+If all the above work as advertised, copy the dynamic library (here called
+"portmidi-ffi-interface.dylib") and the file "portmidi-ffi-interface.scm" to
+the MVT area (where the file "midi-io.scm" is located) and you're good to go.

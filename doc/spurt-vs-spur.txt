@@ -1,0 +1,48 @@
+The SPURT package used by MVT is very similar to SPUR as described at
+<http://www.cs.toronto.edu/~hector/MusicSoftware/spur.html>.  
+
+Here are the main differences:
+
+1.  SPURT needs to be able to do both MIDI in and out.  This means that the
+    Evhan Hanson interface to the OS X CoreMIDI library, which is restricted
+    to MIDI out, can no longer be used.  So SPURT uses PortMidi to do the
+    low-level MIDI work.  The disadvantage is that this is more complex to
+    install.  (See the portmidi/ area for details.) The advantage is that
+    PortMidi is portable, and so SPURT and MVT are not restricted to OS X.
+
+    SPURT use "midi-io.scm" instead of "midiout.scm" for the high-level MIDI
+    interface. It provides the usual note-on, note-off, aftertouch,
+    control-change, pitch-bend, and program-change functions, as before.  To
+    deal with MIDI input and output devices, it provides display-midi-devices,
+    open-midi-devices, and close-midi-devices.  Finally there are new
+    facilities for recording: start-recording, stop-recording which will
+    produce a CSV file of recorded MIDI events.
+
+2.  The original SPUR does all its scheduling with respect to a real-time
+    clock.  If a metro object is used to permit scheduling with respect to
+    beats, a calculation is done at the time of the scheduling to convert that
+    beat information to clock time, and the event is actually scheduled using
+    clock time.  The problem with this is that although we can change the
+    tempo of the metro object to affect future schedulings, earlier events
+    remain scheduled according to the earlier tempo.
+
+    But this is not how MIDI files work!  In a MIDI file, there is a global
+    tempo that is changed by a special MIDI tempo event.  A note might be
+    scheduled to appear at the start of bar 3 (say), but when we actually get
+    to hear that note depends on subsequent tempo changes.  So events cannot
+    be scheduled with respect to a fixed real time clock (rtime), but must be
+    scheduled with respect to a MIDI time unit clock (utime) that is sensitive
+    to future tempo changes.
+
+    For this reason, in SPURT, (now) refers to the current MIDI clock and
+    there are global constants *beat* and *bar* instead of *milli*, *second*,
+    and *minute*.  So for, example, (+ (now) (* 2 *beat*) 480) refers to the
+    current time plus 2.5 beats.  (There is a fixed 960 MIDI time units per
+    beat, but the number of beats per bar depends on the time signature).  The
+    function "set-time-signature" sets the time signature and "set-tempo"
+    changes the tempo and thus the final decision about when to do things.
+
+    With this new timing, the schedule functions are then similar to those in
+    SPUR. One difference in the execution of a schedule is that once an event
+    is ready to be executed, it must be executed before any calculations about
+    future timings, since that event may involve a tempo change.

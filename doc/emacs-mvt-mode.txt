@@ -1,0 +1,359 @@
+-----------------  EDITING AN MVT FILE IN EMACS  ---------------------
+
+There are two main things provided by mvt-mode to help editing MVT text files.
+(See "file-format.txt" in the doc/ area for the format of these text files.)
+  
+  1) MIDI events in the file can be made invisible. For example, pitch bend
+     events, which would otherwise take up many lines of text, can be hidden
+     until there is a need to edit them.  By hiding events, the overall
+     structure of the file and the tracks within it can be seen more easily.
+     (This is done using the "Text Properties" facility of Emacs.)
+
+  2) Each track can have its own buffer. Any change made in a track buffer is
+     automatically reflected in the MVT file buffer as a whole.  (This is done
+     using the "indirect buffers" and "narrowing" facilities of Emacs.)
+
+So there are really two submodes within mvt-mode: one when the file as a whole
+is being edited, and one when a track is being edited in its own buffer.
+
+Most commands in mvt-mode can be accessed by typing a control-c and then one
+other keystroke.  There is also a command to reduce this to one keystroke:
+
+-    mvt-prefix-mode     M-x mvt-prefix-mode
+  This toggles mvt-prefix-mode.  In prefix mode, characters typed in are
+  interpreted as if they were prefixed by a control-c.  This allows many MVT
+  commands to be entered with a single keystroke.
+
+Most of the small editing jobs within a track can be done using the usual
+Emacs text commands, adding and deleting new text, kill-yank, etc.  However,
+to allow new lines that have been typed in to work properly with the
+mvt-visibility command below, the following command should be used:
+
+-    mvt-scan-buffer     M-x mvt-scan-buffer
+  Mark each line in a buffer according to its type of MIDI event.
+
+----------------------------------------------------------------------------
+MVT FILES AND TRACKS
+
+Here are the commands for editing the MVT file as a whole:
+
+-    mvt-visibility      ^c v <letter>
+  This makes all MIDI events of a certain type visible or invisible in the
+  buffer. (See doc/file-format.txt for a list of the eleven types.)  The
+  letter is the first letter of the type: one of n,b,s,v,e,w,t,m,c,a,p.  The
+  letter '*' can also be used to make the entire file visible.  With a prefix
+  argument, this command makes MIDI events of the other types invisible.
+
+-    mvt-new             ^c n
+  This prompts for a track name, adds a "start-track" and "end-track" line to
+  the file, and places the cursor at the "start-track" line. (A track can be
+  deleted simply by killing these two lines and anything between them.) 
+
+-    mvt-next            ^c <right>
+  Move forward to the next line that has "start-track".  With a prefix
+  argument, it moves way forward to the last line that has a "start-track".
+
+-    mvt-prev            ^c <left>
+  Move backward to the previous line that has "start-track". With a prefix
+  argument, it moves way backward to the first line that has a "start-track".
+
+-    mvt-mute            ^c m 
+  Assuming the cursor is located at a "start-track" line, this toggles whether
+  the track is in mute-mode.  With a prefix argument, this turns off mute mode
+  for all the other tracks in the file. 
+
+-    mvt-solo            ^c s
+  Assuming the cursor is located at a "start-track" line, this toggles whether
+  the track is in solo-mode. With a prefix argument, this turns off solo mode
+  for all the other tracks in the file. 
+
+-    mvt-edit            ^c e 
+  Assuming the cursor is located at a "start-track" line, this creates a track
+  buffer of that name (or reuses one), and then switches to that buffer.
+
+-    mvt-insert          ^c i 
+  Assuming the cursor is located at a "start-track" line, this inserts MIDI
+  events (that have been previously put on the clipboard) into the track at
+  their correct locations (without removing any existing track events).
+
+-    mvt-shift-bars      M-x mvt-shift-bars
+  This allows empty bars to be added by shifting all MIDI events forward.  The
+  start bar and number of bars to be added are prompted for. With a prefix
+  argument, bars are deleted by deleting events and shifting events backwards.
+
+When editing in a track buffer, the commands above are available and there are
+more. Here is the new interpretation of the commands above:
+
+  mvt-visibility       adjust visibility for this buffer only
+  mvt-new              adds one or more MIDI events to a track
+  mvt-next             move to the next line with a note event
+  mvt-prev             move to the previous line with a note event
+  mvt-solo             mark this track as solo
+  mvt-mute             mark this track as muted
+  mvt-edit             return to the file buffer
+  mvt-insert           insert clipboard events into this track (see below)
+  mvt-shift-bars       affect this track only 
+
+----------------------------------------------------------------------------
+WORKING WITH SELECTED EVENTS
+
+Because MIDI events are timed, they typically cannot be cut and pasted at
+other places in the file (which would put them out of temporal order).  Also,
+the Emacs idea of a "region" (part of a buffer delimited by two points) does
+not work very well: a region can only collect contiguous lines, and it does
+not take the visibility of lines into account.
+
+For this reason, some special facilities have been provided for modifying a
+group of MIDI events in a track.  The general pattern is this:
+
+  1) some events in the track are selected
+  2) those events from the track are cut or copied to the "clipboard"
+  3) a (possibly modified) version of this clipboard is inserted into a track
+
+Here are some simple examples.  (More details on the three steps are below).
+
+   - to move some events in a track: select the ones to be moved, cut them, 
+     insert the events with a modified location into the same track
+
+   - to copy events to a new track: select the ones to be copied, copy them,
+     go to a new track, insert the events unmodified into the new track.
+
+   - to modify the velocity of some notes: select the notes to be modified, cut
+     the events, insert them with modified velocities into the same track
+
+   - to quantize events: select the ones to be quantized, cut them, insert 
+     them with new quantized locations into the same track.
+
+-------------------
+  1. SELECT
+
+At the start of editing a track, no event is selected.  The commands below all
+add events to the current selection, doing nothing if they were already there.
+With an optional prefix argument, the events are unselected instead. The
+selection shows up highlighted (using the Emacs face highlight property).
+
+-    mvt-select-all      ^c a
+  This adds all the visible MIDI events in the track to the selection.
+
+-    mvt-select-here     ^c h 
+  This adds the current line to the selection.  If the Emacs region is active,
+  it adds all the visible MIDI events between the Emacs point and mark instead.
+
+-    mvt-select-rule     ^c r 
+  This adds to the selection the visible MIDI events in the track that pass a
+  certain rule, which is prompted for.  Details on this command are below.
+
+-    mvt-select-dechord  ^c d
+  This command is for notes only.  It adds all visible notes in the track to
+  the selection, but subject to the constraint that at most N notes of any
+  chord that is played are added.  (A chord here means a group of notes that
+  are started within 32 units of each other.)  The command prompts for N and
+  whether it should add the notes that are highest or lowest in pitch.
+
+-    mvt-select-thin     ^c t
+  Unlike the others, this command always removes elements from the current
+  selection. It prompts for two numbers: N and M.  The effect is to unselect
+  every Nth event starting at event M.  With a prefix argument, those events
+  remain selected and it is the other events that are unselected instead.
+
+-------------------
+  2. CUT and COPY
+
+Here are the commands to move events to and from the clipboard.
+
+-    mvt-cut             ^c x
+  The selected events are removed from the track but placed on the clipboard
+  for further operations. (So the file itself is modified.)
+
+-    mvt-copy            ^c c
+  This is is just like "mvt-cut" except that the events are left in the track,
+  that is, the track is not modified (although the copied events are
+  unselected).  This is useful to insert some MIDI events into another track.
+
+-    mvt-undo            ^c z
+  If events on the clipboard have been inserted into a track in some modifed
+  form (using the MODIFY commands below), the unmodified ones remain on the
+  clipboard.  This command switches them: the old events go back into the
+  track and the new ones go onto the clipboard.  So this is a poor man's undo.
+
+-    mvt-insert          ^c i 
+  This is just like the mvt-insert for the file overall except that with an
+  optional prefix argument, the locations of the events are changed so that
+  the first event starts at the current location in the track.
+
+Note that before events are moved to the clipboard, the selection is actually
+just a list of pointers into the file.  So it is important to move events to
+the clipboard before buffer positions are changed by other Emacs commands.
+
+-------------------
+  3. MODIFY
+
+These commands are used to modify the currently selected MIDI events.  They
+work by first cutting the events to the clipboard (using mvt-cut), and then
+reinserting possibly modified copies of those events into the buffer.
+
+-    mvt-field-change    ^c f
+  This modifies the selected events by changing a field, as determined by
+  three parameters that are prompted for:
+     - the type of modification 
+          this is either:  set, add, scale, max, min, quantize
+     - the field to be modified 
+          this is either:  location, pitch, channel, amount, duration, value
+     - the value of the modification
+          this is either:  a value m, (random m n), (linear m n),
+                           (interval m i), (curve1 m n), (curve2 m n)
+  This is a complex multi-purpose command described in more detail below.
+
+-    mvt-legato          ^c l
+  This command changes notes only, modifying the duration of the note so that
+  it lasts until the next selected note begins.  A prefix argument changes the
+  strength of the operation.  A prefix of 100 is full strength; a prefix of 50
+  sets the duration to half of the time to the next note, etc.
+
+-    mvt-bump            ^c +
+  This commands changes any selected event with an "amount" field (events of
+  type note, sustain, volume, expression, wheel, bend, or tempo), scaling it
+  by 110%.  With a prefix argument, the scale is 90%.
+
+----------------------------------------------------------------------------
+REALTIME MIDI VIA MVT-SPURT
+
+There are Emacs mvt-mode commands for interacting with mvt-spurt for realtime
+MIDI operations. (See doc/mvt-spurt.txt for details.) Here are the commands:
+
+-    mvt-spurt           ^c j
+  Start or stop the mvt-spurt Racket Scheme program for interacting with MIDI
+  devices. The MIDI in and out devices are determined by global variables.
+  With a prefix argument, the MIDI device numbers are prompted for.
+
+-    mvt-send            ^c <period>
+  In a track buffer, send to MIDI out the event at the current cursor
+  location.  (This happens automatically with mvt-prev and mvt-next.)
+   
+-    mvt-stop            ^c <return>
+  This stops any playing or recording of MIDI that is in progress.
+
+-    mvt-play            ^c p
+  Play the current file over MIDI out.  In the file buffer, a prefix argument
+  makes the file play from that bar.  In a track buffer, playing starts at the
+  current location, but a prefix arguments backs it up by that many bars.  The
+  variable mvt-tracking-p determines if the cursor advances during play.
+
+-    mvt-record          ^c <tab>
+  Play the current MIDI file (with mvt-play) and start recording from MIDI in.
+  The mvt-stop command stops the recording and does the actual insertion of
+  events into a new track.  A prefix argument changes the MIDI channel used
+  for recording.  There are also global variables that affect the recording:
+  mvt-lead-in is the number of lead-in bars, mvt-tempo is the default tempo,
+  mvt-clicking-p is whether or not a metronome should sound during recording.
+
+-    mvt-tap-tempo        M-x mvt-tap-tempo
+  This allows the default tempo variable used by mvt-record to be set by
+  typing keys and noting the time between them (averaging over the last three
+  hits).  The function quits when a RETURN key is typed.
+
+----------------------------------------------------------------------------
+SELECTING MIDI EVENTS USING A RULE
+
+The mvt-select-rule command prompts for a rule, which is a LISP expression
+where the fields of the MIDI event (see "file-format.txt" in the doc/ area)
+are used as free variables.  (Note: controller names and arguments to meta
+events are excluded.  They can only be edited by hand.) For example, the rule
+
+     (> duration 480) 
+
+would add notes whose duration exceeds 480 units to the selection.  The rule
+
+     (or (= pitch "Eb3") (< amount 10))
+
+adds those notes whose pitch is Eb3 or whose velocity is below 10. This one, 
+
+     (and (>= location "4:1:0") (< location "7:1:0"))
+
+adds all visible MIDI events located in bars 4, 5 and 6.  A MIDI event
+satisfies a rule if it has the fields with appropriate values. So only note
+events are selected by (= duration duration), since only notes have duration.
+
+There are a few extensions for convenience.  First, as seen above, strings
+standing for note names (like "G#2") and for locations (like "3:2:240") can be
+used in rules and are converted automatically to numbers.
+
+Durations, however, must be entered as numeric values.  For example, 480 is
+half of a beat, and 2880 is three beats.  To facilitate the conversion, the
+free variables "beats" and "bars" can also be used in a rule. So the rule,
+
+     (> duration (* 2 beats))
+
+selects notes whose duration exceeds 1920 units.  Similarly,
+
+     (< (abs (- location "10:1:0")) (+ (* 3 bars) (* 2 beats)))
+
+selects notes within three bars and two beats of the start of bar 10. 
+
+Finally, there are three other special variables.  The variable "type" has as
+its symbolic value one of the eleven types (note, bend, etc.). The variable
+"bar-distance" has as its value the distance in units to the start of the
+closest bar, and "beat-distance" to the closest beat.  So, for example,
+
+     (and (eq type 'wheel) (< bar-distance 20))
+
+selects the mod wheel controller events within 20 units to the start of a bar.
+
+----------------------------------------------------------------------------
+MODIFYING THE FIELDS OF MIDI EVENTS
+
+The mvt-field-change command is a flexible way to change the value of a field
+over all selected events that have that field.  It is best illustrated by
+considering the example of changing the velocity of notes.
+
+Assume that only note events are selected and that the first two parameters
+for mvt-field-change are "set" and "amount".  This means: note velocities are
+to be set according to the third parameter (since "amount" means velocity for
+notes).  If a numeric value is given for this third parameter, then all the
+notes are given that velocity. If (random m n) is used, the velocities will be
+random numbers between m and n inclusive.  For (linear m n), the first
+selected event will get m, the last one will get n, and the other events will
+get values spread out evenly.  For (interval m i), the first event will get m
+and the rest will get values spaced i apart. For (curve1 m n), the effect is
+like linear, except that more values are close to m.  For (curve2 m n), the
+effect is like linear except that more values are close to n.
+
+This is for "set" as the first parameter to mvt-field-change.  The "add" value
+is similar, except that the the velocity amount is incremented by the value
+determined by the third parameter.  So for example, a random number can be
+added to the velocity of each event.  The "scale" value for the first
+parameter expects to see a percent value from the third parameter.  So, for
+example, "scale" with (random 90 110) would change the velocity of each note
+to be somewhere between 90% and 110% of its old value.  The "max" value will
+leave the velocity unchanged unless it exceeds the value produced by the third
+parameter.  The "min" value is analogous.  The "quantize" value ensures that
+the velocity is a multiple of the value given by the third parameter.  This is
+most useful for location or duration fields, but for velocity, "quantize" with
+the value 5 would change the velocity to be the closest multiple of 5.
+
+This is for "amount" as the field to change.  The "value" field is also a
+number from 0 to 127.  The "channel" field is a number from 1 to 16, instead
+of 0 to 127.  The "pitch" is also a number from 0 to 127, but shown as notes
+in the form Eb3 or C4.  So "add, pitch, 12", transposes each note up one
+octave.  The "amount" for tempo is a floating point number.  The "amount" for
+bend events is a number from -8192 to 8191.  Finally, "location" and
+"duration" are time values.  These are converted to MIDI units (according to
+the time signature of the file) to do the necessary arithmetic.  So, for
+example, in 4/4, "quantize, location, 240" would change the timing of the
+notes so that they would start at the nearest 1/16th note (with durations
+unchanged).  If a number of notes at the same location are selected, then
+"add, location, (interval 0 240)" spreads these notes out, 240 units apart.
+
+For convenience, when pitches or locations are being changed, the values "m"
+and "n" in the above can be strings (in double quotes) like "Gb4" for pitches,
+or "3:2:240" for locations, as with the mvt-select-rule command above.
+
+One final tweak: A prefix argument for mvt-field-change is a strength
+parameter in percent form.  With a strength of 100, the behaviour is as above;
+with a strength of 0, the field is not changed at all; with a strength of 50,
+the field moves halfway between its old value and what would otherwise be its
+new value. This is useful, for example, to partially quantize some events, not
+moving them all the way to the closest grid point.  It is also useful for
+"compressing" values.  For example, setting the velocity of notes to 127 with
+a strength of 50 moves each note halfway to 127, so the effect is that the
+velocities stay in the same relative order, but bunch closer together.

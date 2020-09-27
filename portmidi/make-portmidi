@@ -1,0 +1,5 @@
+#!/bin/bash
+gcc -dynamiclib -I /opt/local/include/ \
+  -L/usr/local/lib -L/opt/local/lib -lportmidi -lpthread \
+  portmidi-ffi-interface.c  -o portmidi-ffi-interface.dylib
+

@@ -1,0 +1,102 @@
+An MVT file is a sequence of text lines like the CSV format (see its docs)
+with some small changes to facilitate reading it and editing it by hand.
+
+Apart from comments (with a semi-colon in column one and continuing to the end
+of the line), MVT files have the following format:
+
+       start-file <numer> <denom> [soloing]
+       <tracks>*
+       end-file
+
+where <numer>/<denom> is the (fixed) time signature of the file (e.g. 4/4 or
+3/8).  Each beat is divided into 960 parts, and each bar is divided into
+<numer> beats.  (The <denom> is only used for musical notation.  It should be
+a power of 2, and <denom>/4 indicates how many beats per notation quarter
+note.)  Overall, the piece timing starts at bar 1 beat 1 unit 0, then goes to
+bar 1 beat 1 unit 959.  Next comes bar 1 beat 2 unit 0, and so on up to bar 1
+beat <numer> unit 959.  Next comes bar 2 beat 1 unit 0, etc.  (Note: it might
+have been more elegant to use zero-origin throughout, but no self-respecting
+musician counts a 4/4 bar as "0, 1, 2, 3," so that's that!)  The optional
+"soloing" decoration indicates that tracks need a solo decoration to be heard.
+
+Each <track> contains these text lines:
+
+      start-track <name> [solo] [mute]
+      <timed MIDI event>*
+      end-track
+
+where <name> is any string of characters in double quotes, and the optional
+decoration of "solo" or "mute" indicates whether the track should be soloed or
+muted (or both).
+
+A <timed MIDI event> is of the form
+
+      <location> <type> <field>*
+
+where <location> is <bar>:<beat>:<unit> (usually with spaces to allow all the
+semi-colons to line up).  The <type> is one of eleven values:
+
+     note, sustain, volume, expression, wheel, control
+     bend, after, program, tempo, meta 
+
+The type "note" is for the combination of note-on and note-off events.  The
+types "sustain", "volume", "wheel" and "expression" are controller events (for
+controllers 64, 7, 1, and 11).  The type "control" is for the rest of the
+controller events.  The type "bend" is for pitch bend, and "after" is for
+channel aftertouch.  The type "program" is for program changes.  The type
+"tempo" is for tempo changes. Finally, "meta" is for all remaining meta or
+system events.
+
+The <field>s that appear in a MIDI event depend on the type.  Each event is
+considered to have a location and a type field.  Here are the others:
+
+     note:  <channel> <pitch> <amount> <duration>
+     bend:  <channel> <amount>
+     sustain:  <channel> <value>
+     volume:  <channel> <amount>
+     expression:  <channel> <amount>
+     wheel:  <channel> <amount>
+     after:  <channel> <amount>
+     control:  <channel> <controller name> <value>
+     program:  <channel> <value>
+     tempo:  <amount>
+     meta:  <misc arguments> 
+
+The <channel> is a number from 1 to 16 (unlike CSV).  The <pitch> is a note
+name from C-1 to A9 with # and b for sharp and flat in the usual way, where
+for example, Eb3 and D#3 are the same pitch.  The <amount> field is a numberic
+value that varies according to the type: for a note, it is the velocity (from
+0 to 127); for a bend, it is the amount to bend the pitch from -8192 to 8191
+(unlike CSV); for the four controllers, it is the controller amount (from 0 to
+127); for tempo it is the bpm amount.  (These fields are all called "amount"
+because it will make sense to scale them or to increment them.)  The
+<duration> field is of the form bar:beat:unit or beat:unit or just unit, where
+the missing values are treated as 0.  The <value> field is a number from 0 to
+127.  The <controller name> is a name listed in the file MIDIControllers.txt,
+supplemented by "MIDI_controller_N" for any N between 0 and 127 that does not
+appear in that list.  The events of type "meta" have <misc arguments> just
+like in CSV, but with commas removed, and with the following exceptions:
+
+  - Title_t is not used.  Tracks are given a title on the Start_track line
+  - Time_signature is not used.  A file can only have one time signature.
+  - Poly_aftertouch_c is not used. (I couldn't be bothered...)
+  - The microsecond Tempo event is not used.  Instead "tempo" in bpm is used.
+
+Here is an example MVT file (see the midi-file-basics in the doc/ area):
+
+    start-file 4 4
+    start-track "Close Encounters"
+      1:1:0   meta Text_t "Sample for MIDIcsv Distribution"
+      1:1:0   meta Copyright_t "This file is in the public domain"
+      1:1:0   tempo 120.00
+    end-track
+    start-track "Track2"
+      1:1:0   meta Instrument_name_t "Church Organ"
+      1:1:0   program 2 19
+      1:1:0   note 2  G5  81 2:0
+      1:3:0   note 2  A5  81 2:0
+      2:1:0   note 2  F5  81 2:0
+      2:3:0   note 2  F4  81 2:0
+      3:1:0   note 2  C5  81 2:0
+    end-track
+    end-file

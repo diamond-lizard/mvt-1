@@ -1,0 +1,56 @@
+The Scheme mvt-spurt program allows realtime interaction with MIDI devices,
+for example, to hear a note in an MVT file on a MIDI instrument, or to insert
+a note played on a MIDI keyboard into an MVT file.  
+
+The main Scheme functions provided by mvt-spurt are the following:
+
+  - (display-midi-devices)
+       Show a list of all connected MIDI input and output devices.
+       The numbers shown can be used with the open-midi-devices function. 
+  - (open-midi-devices <input-number> <output-number>)
+       Select a MIDI input and a MIDI output device for future interaction.
+       Either argument can be #f, in which case the port remains closed.
+  - (close-midi-devices)
+       Close the MIDI devices that were opened by open-midi-devices.
+  - (schedule-file <file> [<bar>])
+       Read an MVT file, interpreting it as events for MIDI out to be
+       scheduled for later play, respecting tracks that are to be muted or
+       soloed and arranging for tracking information to be printed. Also, 
+       if <bar> is present, only events there or later are scheduled. 
+  - (start-tracking name)
+       This causes the location of notes in the track of the given name to be
+       printed during the execution of a schedule (playing or recording).
+       (These are used by Emacs to move the cursor during playback.)
+  - (stop-tracking)
+       This stops the printing.
+  - (start-playing)
+       Execute the current schedule, which typically has MIDI out events to
+       perform, as a separate Racket Scheme thread.
+  - (stop-playing)
+       Stop the playing.
+  - (play-event <str>)
+       Play the single MVT event given by the string <str> immediately.
+  - (start-recording [reroute])
+       Save the events received over MIDI input to the file /tmp/track.csv.
+       (The file is a track in CSV format, but the utility rec-csv2mvt can
+       convert the track to MVT format.)  The optional <reroute> argument is
+       used to map input received on one MIDI channel to another.
+  - (stop-recording)
+       Stop the recording.
+  - (start-clicking)
+       This causes a clicking sound to be heard on every beat during the
+       execution of a schedule (playing or recording).
+  - (stop-clicking)
+       This silences the clicking.
+
+The mvt-spurt uses midi-io.scm for all the MIDI interaction, using a bridge
+between Scheme and actual MIDI devices described in the portmidi/ area.  The
+mvt-spurt program uses spurt.scm to manage the execution schedule. It is based
+on SPUR <http://www.cs.toronto.edu/~hector/MusicSoftware/spur.html>, with two
+main differences noted in doc/spurt-vs-spur.txt.
+
+The mvt-spurt can be used standalone to play an MVT file uninterrupted:
+
+    > racket  -tm mvt-spurt.scm  <somefile.mvt>
+
+However, it was mainly designed to be invoked by Emacs in mvt-mode.

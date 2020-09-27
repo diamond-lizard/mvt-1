@@ -1,0 +1,69 @@
+MIDIviaTEXT (aka MVT) is a software package that allows MIDI files to be
+edited as simple text files (with extension .mvt).  It uses the free midicsv
+utilities (http://www.fourmilab.ch/webtools/midicsv/) to do a lot of the work.
+
+This archive contains the following:
+
+     README.txt             this file
+     csv2mvt.pl             a Perl script to translate CSV files to MVT files
+     mvt2csv.pl             a Perl script to translate MVT files to CSV files
+     mvt-mode.el            a major mode of Emacs for editing MVT files
+     doc/                   a subdirectory with documentation
+     overlap.pl             a Perl utility to check for note overlaps in CSV
+     scar87.mvt             an example MVT file for solo piano
+     MIDIControllers.txt    a file with names for the MIDI controllers
+     mvt-spurt.scm          a Scheme program for playing/recording MVT files
+     spurt.scm              the scheduler used by mvt-spurt
+     midi-io.scm            the MIDI interface used by mvt-spurt
+     portmidi/              a subdirectory for low-level MIDI input/output
+     rec-csv2mvt.pl         a Perl script to move recorded CSV tracks to MVT
+
+I assume the reader is already familar with the ideas behind MIDI files in
+general, but there is also a quick intro in doc/midi-file-basics.txt.
+
+While I have used and continued to use full-service MIDI sequencers like Logic
+Pro and Pro Tools, I have found it frustrating that these tools are so hard to
+extend and customize.  I do tend to spend a lot of time fiddling with MIDI
+events in these sequencers (not being much of a piano player) and so I wanted
+an editor that I could easily adapt to suit my (changing) tastes.
+
+The MVT file format (described in the doc/file-format.txt) is like the CSV
+text format used by the midicsv utilities (see its online docs), but with a
+few small changes to make the files easier to work with by hand. To wit:
+
+    1. Instead of noteon and noteoff events, notes with a duration are used
+    2. Tempo is specified in BPM instead of microseconds per quarter note
+    3. MIDI channels range from 1 to 16 instead of 0 to 15
+    4. Timing uses Bar:Beat:Unit instead of units of MIDI clocks.
+    5. Beats are always divided into 960 units of MIDI clock.
+    6. The names of notes and controllers are used instead of numbers 0-127.
+    7. Pitch bend is in the range -8192 to 8191 instead of 0 to 16383.
+    8. Tracks can be marked as muted or soloed.
+
+To produce an MVT file from a MIDI file, the midicsv utility is first used to
+make a CSV file and then piped through my csv2mvt Perl filter. This filter has
+a mvt2csv inverse to produce a changed MIDI file.  Here's a typical routine:
+
+     cat old.mid | midicsv | csv2mvt.pl > old.mvt
+        ... Then edit old.mvt to produce new.mvt. Then ...
+     cat new.mvt | mvt2csv.pl | csvmidi > new.mid
+
+The MVT files can be edited using any text editor or even changed using batch
+scripts. (See the midicsv docs for some example scripts.)
+
+For Emacs users, however, it is possible to go much further. I have prepared
+an Emacs mvt-mode for editing MVT files, and especially for selecting and
+modifying groups of MIDI events interactively (see doc/emacs-mvt-mode.txt for
+details). It even has a way of playing and recording MIDI notes using an
+auxiliary Racket Scheme package called mvt-spurt (see doc/mvt-spurt.txt). So
+Emacs in MVT mode is like a poor man's MIDI sequencer!  What's more, anyone
+familiar with Emacs Lisp should be able to extend and customize it.
+
+As for installation, Perl, Emacs, and midicsv must all be installed (duh).  My
+Perl is version 5.12, Emacs is 24.2.1, and midicsv is 1.1.  To record and play
+MIDI notes using mvt-spurt, a bridge is required between Racket Scheme and the
+MIDI input and output devices.  This is a more complex installation and is
+described in detail in the portmidi/ area.
+
+So that's the deal.  Send me email if you spot bugs, but as usual, the
+secretary may disavow any knowledge of the package.
